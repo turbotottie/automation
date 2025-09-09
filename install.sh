@@ -175,27 +175,6 @@ if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
     exit 1
 fi
 
-echo "Creating CRM project..."
-
-# Create CRM project
-PROJECT_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/db/meta/projects \
-  -H "xc-auth: $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "CRM",
-    "type": "database"
-  }')
-check_response $? "CRM project creation"
-debug_response "CRM project creation" "$PROJECT_RESPONSE"
-
-PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r .id)
-
-if [ "$PROJECT_ID" == "null" ] || [ -z "$PROJECT_ID" ]; then
-    echo "Error: Failed to create CRM project"
-    echo "Response: $PROJECT_RESPONSE"
-    exit 1
-fi
-
 # Save API tokens to file with labels
 echo "# API Keys for n8n and NocoDB Services" > api_keys.txt
 echo "# Generated on $(date)" >> api_keys.txt
