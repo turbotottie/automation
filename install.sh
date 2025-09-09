@@ -78,14 +78,14 @@ MAX_N8N_ATTEMPTS=60
 
 while [ $N8N_READY -eq 0 ] && [ $N8N_ATTEMPTS -lt $MAX_N8N_ATTEMPTS ]; do
     echo "Checking n8n status (Attempt $N8N_ATTEMPTS of $MAX_N8N_ATTEMPTS)..."
-    
+
     # Check container status
     N8N_STATUS=$(docker-compose ps -a n8n | grep n8n | awk '{print $4}')
     echo "n8n container status: $N8N_STATUS"
-    
+
     # Check container logs
     check_logs n8n
-    
+
     # Try health check
     if curl -s http://localhost:5678/healthz > /dev/null; then
         echo "n8n health check passed"
@@ -113,14 +113,14 @@ ATTEMPT=0
 
 while [ $READY -eq 0 ] && [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
     echo "Checking NocoDB status (Attempt $ATTEMPT of $MAX_ATTEMPTS)..."
-    
+
     # Check container status
     NOCODB_STATUS=$(docker-compose ps -a nocodb | grep nocodb | awk '{print $4}')
     echo "NocoDB container status: $NOCODB_STATUS"
-    
+
     # Check container logs
     check_logs nocodb
-    
+
     # Try health check
     RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/health)
     if [ "$RESPONSE" = "200" ]; then
@@ -147,11 +147,11 @@ echo "Creating demo user..."
 # Create NocoDB user account
 SIGNUP_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signup \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "$NC_USER",
-    "password": "$NC_PASS",
-    "roles": "user"
-  }')
+  -d "{
+    \"email\": \"${NC_USER}\",
+    \"password\": \"${NC_PASS}\",
+    \"roles\": \"user\"
+  }")
 check_response $? "NocoDB user creation"
 debug_response "NocoDB user creation" "$SIGNUP_RESPONSE"
 
@@ -160,10 +160,10 @@ echo "Logging in to get auth token..."
 # Login to get token
 TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signin \
   -H "Content-Type: application/json" \
-  -d '{
-    "email": "$NC_USER",
-    "password": "$NC_PASS"
-  }')
+  -d "{
+    \"email\": \"${NC_USER}\",
+    \"password\": \"${NC_PASS}\"
+  }")
 check_response $? "NocoDB authentication"
 debug_response "NocoDB authentication" "$TOKEN_RESPONSE"
 
@@ -174,6 +174,7 @@ if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
     echo "Response: $TOKEN_RESPONSE"
     exit 1
 fi
+
 
 # Save API tokens to file with labels
 echo "# API Keys for n8n and NocoDB Services" > api_keys.txt
