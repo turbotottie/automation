@@ -1,0 +1,157 @@
+#!/bin/bash
+
+# Check if .env file exists, if not copy from example
+if [ ! -f .env ]; then
+    echo "No .env file found. Creating from .env.example..."
+    if [ ! -f .env.example ]; then
+        echo "Error: .env.example file not found"
+        exit 1
+    fi
+    cp .env.example .env
+    echo "Created .env file. Please edit it with your desired configuration."
+    echo "At minimum, you must set a secure POSTGRES_PASSWORD."
+    exit 1
+fi
+
+# Source the .env file
+source .env
+
+# Check if POSTGRES_PASSWORD is set
+if [ -z "$POSTGRES_PASSWORD" ]; then
+    echo "Error: POSTGRES_PASSWORD is not set in .env file"
+    echo "Please edit .env and set a secure password for PostgreSQL"
+    exit 1
+fi
+
+echo "Starting n8n and NocoDB installation..."
+
+# Pull latest images and start services
+docker-compose pull
+docker-compose up -d
+
+# Function to check if a curl request was successful
+check_response() {
+    if [ $1 -ne 0 ]; then
+        echo "Error: $2 failed"
+        exit 1
+    fi
+}
+
+# Function to debug API response
+debug_response() {
+    echo "Debug: API Response for $1:"
+    echo "$2"
+    echo "---"
+}
+
+# Function to check container logs
+check_logs() {
+    echo "Checking logs for $1..."
+    docker-compose logs --tail=50 "$1"
+}
+
+# Wait for PostgreSQL to be ready
+echo "Waiting for PostgreSQL to be ready..."
+until docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; do
+    sleep 5
+    echo "Still waiting for PostgreSQL..."
+    check_logs postgres
+done
+
+echo "PostgreSQL is ready"
+
+# Wait for Redis to be ready
+echo "Waiting for Redis to be ready..."
+until docker-compose exec -T redis redis-cli -a password ping | grep -q "PONG"; do
+    sleep 5
+    echo "Still waiting for Redis..."
+    check_logs redis
+done
+
+echo "Redis is ready"
+
+# Wait for n8n to be ready with detailed debugging
+echo "Waiting for n8n to be ready..."
+N8N_READY=0
+N8N_ATTEMPTS=0
+MAX_N8N_ATTEMPTS=60
+
+while [ $N8N_READY -eq 0 ] && [ $N8N_ATTEMPTS -lt $MAX_N8N_ATTEMPTS ]; do
+    echo "Checking n8n status (Attempt $N8N_ATTEMPTS of $MAX_N8N_ATTEMPTS)..."
+    
+    # Check container status
+    N8N_STATUS=$(docker-compose ps -a n8n | grep n8n | awk '{print $4}')
+    echo "n8n container status: $N8N_STATUS"
+    
+    # Check container logs
+    check_logs n8n
+    
+    # Try health check
+    if curl -s http://localhost:5678/healthz > /dev/null; then
+        echo "n8n health check passed"
+        N8N_READY=1
+    else
+        echo "n8n health check failed"
+        sleep 5
+        N8N_ATTEMPTS=$((N8N_ATTEMPTS + 1))
+    fi
+done
+
+if [ $N8N_READY -eq 0 ]; then
+    echo "Error: n8n failed to become ready within timeout"
+    check_logs n8n
+    exit 1
+fi
+
+echo "n8n is ready and configured"
+
+# Wait for NocoDB to be ready with detailed debugging
+echo "Waiting for NocoDB to be ready..."
+READY=0
+MAX_ATTEMPTS=60  # 5 minutes timeout
+ATTEMPT=0
+
+while [ $READY -eq 0 ] && [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+    echo "Checking NocoDB status (Attempt $ATTEMPT of $MAX_ATTEMPTS)..."
+    
+    # Check container status
+    NOCODB_STATUS=$(docker-compose ps -a nocodb | grep nocodb | awk '{print $4}')
+    echo "NocoDB container status: $NOCODB_STATUS"
+    
+    # Check container logs
+    check_logs nocodb
+    
+    # Try health check
+    RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/health)
+    if [ "$RESPONSE" = "200" ]; then
+        READY=1
+        echo "NocoDB health check passed"
+    else
+        echo "NocoDB health check failed (HTTP $RESPONSE)"
+        sleep 5
+        ATTEMPT=$((ATTEMPT + 1))
+    fi
+done
+
+if [ $READY -eq 0 ]; then
+    echo "Error: NocoDB failed to become ready within timeout"
+    check_logs nocodb
+    exit 1
+fi
+
+echo "NocoDB is ready. Waiting for full initialization..."
+sleep 30  # Give extra time for NocoDB to fully initialize
+
+echo "Installation complete!"
+echo "NocoDB URL: http://localhost:8080"
+echo "n8n URL: http://localhost:5678"
+echo "Credentials for both services: demo@example.com / DemoUser132!"
+echo "API token has been saved to api_keys.txt"
+
+# Final verification
+echo "Verifying services..."
+curl -s http://localhost:8080/api/v1/health > /dev/null
+check_response $? "NocoDB final verification"
+curl -s http://localhost:5678/healthz > /dev/null
+check_response $? "n8n final verification"
+echo "All services verified!"
