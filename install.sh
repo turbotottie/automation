@@ -148,8 +148,8 @@ echo "Creating demo user..."
 SIGNUP_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signup \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "demo@example.com",
-    "password": "DemoUser132!",
+    "email": "$NC_USER",
+    "password": "$NC_PASS",
     "roles": "user"
   }')
 check_response $? "NocoDB user creation"
