@@ -15,7 +15,7 @@ services:
       retries: 5
     networks:
       - app_network
-      
+
   redis:
     image: redis:7-alpine
     volumes:
@@ -33,11 +33,12 @@ services:
     environment:
       - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
+      - N8N_PROTOCOL=${N8N_PROTOCOL}
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE}
       - N8N_USER_MANAGEMENT_DISABLED=false
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_PUBLIC_API_DISABLED=false
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=http://${N8N_HOST:-localhost}:5678/
       - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Bucharest}
       - TZ=${GENERIC_TIMEZONE:-Europe/Bucharest}
       - DB_TYPE=postgresdb
