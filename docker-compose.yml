@@ -38,8 +38,8 @@ services:
       - N8N_DIAGNOSTICS_ENABLED=false
       - N8N_PUBLIC_API_DISABLED=false
       - WEBHOOK_URL=http://localhost:5678/
-      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Chicago}
-      - TZ=${GENERIC_TIMEZONE:-America/Chicago}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Bucharest}
+      - TZ=${GENERIC_TIMEZONE:-Europe/Bucharest}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
