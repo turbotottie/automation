@@ -144,7 +144,7 @@ sleep 30  # Give extra time for NocoDB to fully initialize
 
 echo "Creating demo user..."
 
-# Create NocoDB demo user account
+# Create NocoDB user account
 SIGNUP_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signup \
   -H "Content-Type: application/json" \
   -d '{
@@ -161,8 +161,8 @@ echo "Logging in to get auth token..."
 TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signin \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "demo@example.com",
-    "password": "DemoUser132!"
+    "email": "$NC_USER",
+    "password": "$NC_PASS"
   }')
 check_response $? "NocoDB authentication"
 debug_response "NocoDB authentication" "$TOKEN_RESPONSE"
