@@ -103,7 +103,7 @@ if [ $N8N_READY -eq 0 ]; then
     exit 1
 fi
 
-echo "n8n is ready and configured"
+echo "n8n is ready and configured with demo user account"
 
 # Wait for NocoDB to be ready with detailed debugging
 echo "Waiting for NocoDB to be ready..."
@@ -141,6 +141,79 @@ fi
 
 echo "NocoDB is ready. Waiting for full initialization..."
 sleep 30  # Give extra time for NocoDB to fully initialize
+
+echo "Creating demo user..."
+
+# Create NocoDB demo user account
+SIGNUP_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "demo@example.com",
+    "password": "DemoUser132!",
+    "roles": "user"
+  }')
+check_response $? "NocoDB user creation"
+debug_response "NocoDB user creation" "$SIGNUP_RESPONSE"
+
+echo "Logging in to get auth token..."
+
+# Login to get token
+TOKEN_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/auth/user/signin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "demo@example.com",
+    "password": "DemoUser132!"
+  }')
+check_response $? "NocoDB authentication"
+debug_response "NocoDB authentication" "$TOKEN_RESPONSE"
+
+TOKEN=$(echo "$TOKEN_RESPONSE" | jq -r .token)
+
+if [ "$TOKEN" == "null" ] || [ -z "$TOKEN" ]; then
+    echo "Error: Failed to get authentication token"
+    echo "Response: $TOKEN_RESPONSE"
+    exit 1
+fi
+
+echo "Creating CRM project..."
+
+# Create CRM project
+PROJECT_RESPONSE=$(curl -s -X POST http://localhost:8080/api/v1/db/meta/projects \
+  -H "xc-auth: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "CRM",
+    "type": "database"
+  }')
+check_response $? "CRM project creation"
+debug_response "CRM project creation" "$PROJECT_RESPONSE"
+
+PROJECT_ID=$(echo "$PROJECT_RESPONSE" | jq -r .id)
+
+if [ "$PROJECT_ID" == "null" ] || [ -z "$PROJECT_ID" ]; then
+    echo "Error: Failed to create CRM project"
+    echo "Response: $PROJECT_RESPONSE"
+    exit 1
+fi
+
+# Save API tokens to file with labels
+echo "# API Keys for n8n and NocoDB Services" > api_keys.txt
+echo "# Generated on $(date)" >> api_keys.txt
+echo "" >> api_keys.txt
+echo "NocoDB API Key:" >> api_keys.txt
+echo "$TOKEN" >> api_keys.txt
+echo "" >> api_keys.txt
+echo "n8n API Key:" >> api_keys.txt
+echo "${N8N_API_KEY}" >> api_keys.txt
+
+# Verify API token file was created and has content
+if [ ! -s api_keys.txt ]; then
+    echo "Error: API token file is empty"
+    exit 1
+fi
+
+# Set proper permissions on API keys file
+chmod 600 api_keys.txt
 
 echo "Installation complete!"
 echo "NocoDB URL: http://localhost:8080"
